@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:news/models/articlesModel.dart';
+import 'package:news/services/news_services.dart';
 
 class ShowNews extends StatefulWidget {
   const ShowNews({super.key});
@@ -10,34 +11,33 @@ class ShowNews extends StatefulWidget {
 }
 
 class _ShowNewsState extends State<ShowNews> {
-  List<Articlesmodel> listArticle = [];
   bool isLoader = true;
   String errMsg = '';
-  void getNews() async {
+  final List<String> categories = [
+    'business',
+    'entertainment',
+    'general',
+    'health',
+    'science',
+    'sports',
+    'technology',
+  ];
+  String selectedCategory = 'general';
+  List<Articlesmodel> listArticle = [];
+  final NewsServices newsServices = NewsServices();
+  void fetchNews() async {
     try {
-      Dio dio = Dio();
-      Response res = await dio.get(
-        'https://newsapi.org/v2/everything?q=tesla&from=2025-07-19&sortBy=publishedAt&apiKey=01e733f14a144d409430830f29fd1ebd',
+      List<Articlesmodel> articles = await newsServices.getNews(
+        selectedCategory,
       );
-      Map<String, dynamic> data = res.data;
-      List<dynamic> articles = data['articles'];
-      List<Articlesmodel> articleList = [];
-      for (var element in articles) {
-        Articlesmodel article = Articlesmodel(
-          title: element['title'],
-          desc: element['title'],
-          img: element['title'],
-        );
-        articleList.add(article);
-      }
       setState(() {
-        listArticle = articleList;
+        listArticle = articles;
         isLoader = false;
       });
     } catch (err) {
       setState(() {
         isLoader = false;
-        errMsg = 'Server Error';
+        errMsg = err.toString();
       });
     }
   }
@@ -45,13 +45,42 @@ class _ShowNewsState extends State<ShowNews> {
   @override
   void initState() {
     super.initState();
-    getNews();
+    fetchNews();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('News')),
+      appBar: AppBar(
+        toolbarHeight: 80,
+        title: Text('News'),
+        bottom: PreferredSize(
+          preferredSize: Size(double.infinity, 30),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 10.0),
+            child: Row(
+              children: [
+                DropdownButton(
+                  hint: Text('Category'),
+                  items: categories.map((category) {
+                    return DropdownMenuItem(
+                      child: Text(category),
+                      value: category,
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      selectedCategory = value;
+                      fetchNews();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+
       body: isLoader
           ? Center(child: CircularProgressIndicator())
           : errMsg.isNotEmpty
